@@ -14,6 +14,8 @@ public:
 
   std::vector<std::string> getLatestAlerts();
 
+  void clearAlerts();
+
 private:
   std::vector<std::string> latestAlerts_;
   mutable std::mutex alertMutex_;

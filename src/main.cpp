@@ -12,6 +12,7 @@
 #include "ConfigManager.h"
 #include "CpuCollector.h"
 #include "DataManager.h"
+#include "DiskCollector.h"
 #include "MemoryCollector.h"
 #include "MetricData.h"
 #include "Rule.h"
@@ -39,6 +40,22 @@ void collectorWorker(AbstractMetricCollector *collector,
             << std::endl;
 }
 
+void inputWorker(std::atomic<bool> &stopFlag, AlertManager &alertManger) {
+  std::string command;
+  while (!stopFlag) {
+    std::getline(std::cin, command);
+    if (command == "exit" || command == "quit") {
+      stopFlag = true;
+    } else if (command == "clear") {
+      alertManger.clearAlerts();
+    } else if (!command.empty()) {
+      std::cout << "\nUnknown command: '" << command << "'" << std::endl;
+    }
+  }
+
+  std::cout << "Input handler thread shutting down." << std::endl;
+}
+
 int main() {
   signal(SIGINT, signalHandler);
 
@@ -54,6 +71,8 @@ int main() {
   double cpuThreshold = configManager.getDouble("CPU_THRESHOLD").value_or(80.0);
   double memThreshold =
       configManager.getDouble("MEMORY_THRESHOLD").value_or(75.0);
+  double diskThreshold =
+      configManager.getDouble("DISK_IO_THRESHOLD").value_or(5120.0); // 5MB/s
 
   std::cout << "CPU Alert Threshold: " << cpuThreshold << "%" << std::endl;
   std::cout << "Memory Alert Threshold: " << memThreshold << "%" << std::endl;
@@ -69,20 +88,27 @@ int main() {
                           Rule::Comparison::GREATER_THAN, memThreshold,
                           "CRITICAL: Memory Usage is high!"));
 
+  std::string mainDisk = "sda";
+  ruleEngine.addRule(Rule("Disk_IO_Rate_" + mainDisk,
+                          Rule::Comparison::GREATER_THAN, diskThreshold,
+                          "CRITICAL: Disk I/O is high on " + mainDisk));
+
   std::vector<std::unique_ptr<AbstractMetricCollector>> collectors;
   collectors.push_back(std::make_unique<CpuCollector>());
   collectors.push_back(std::make_unique<MemoryCollector>());
+  collectors.push_back(std::make_unique<DiskCollector>(mainDisk));
 
   std::vector<std::thread> threads;
 
-  std::cout << "Starting threads" << std::endl;
+  std::cout << "Starting background threads" << std::endl;
+  threads.emplace_back(&RuleEngine::run, &ruleEngine, std::cref(stopFlag));
+  threads.emplace_back(&UIManager::run, &uiManager, std::cref(stopFlag));
+  threads.emplace_back(inputWorker, std::ref(stopFlag), std::ref(alertManager));
+
   for (const auto &collector : collectors) {
     threads.emplace_back(collectorWorker, collector.get(),
                          std::ref(dataManager), std::cref(stopFlag), 1);
   }
-
-  threads.emplace_back(&RuleEngine::run, &ruleEngine, std::cref(stopFlag));
-  threads.emplace_back(&UIManager::run, &uiManager, std::cref(stopFlag));
 
   while (!stopFlag) {
     std::this_thread::sleep_for(std::chrono::milliseconds(200));

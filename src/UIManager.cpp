@@ -62,8 +62,8 @@ void UIManager::displayDashboard() {
   }
 
   std::cout << "-------------------------------------" << std::endl;
-  std::cout << "(Press Ctrl+C to exit)" << std::endl;
-  std::cout << std::flush;
+  std::cout << "COMMANDS: [clear] Clear Alerts | [exit] Quit" << std::endl;
+  std::cout << "> " << std::flush;
 }
 
 void UIManager::run(const std::atomic<bool> &stopFlag) {
@@ -71,7 +71,7 @@ void UIManager::run(const std::atomic<bool> &stopFlag) {
     displayDashboard();
 
     // refresh ui for every half a second
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    std::this_thread::sleep_for(std::chrono::seconds(1));
   }
 
   std::cout << "\nUI thread shutting down." << std::endl;
