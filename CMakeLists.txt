@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(LinuxMonitor VERSION 1.0 LANGUAGES CXX)
+project(linux_monitor VERSION 1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -11,6 +11,8 @@ add_executable(linux_monitor
 	RuleEngine.cpp
 	AlertManager.cpp
 	DataManager.cpp
+	UIManager.cpp
+	ConfigManager.cpp
 )
 
 target_link_libraries(linux_monitor PRIVATE pthread)
